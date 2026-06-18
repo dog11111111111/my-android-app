@@ -1,0 +1,55 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Install unzip
+      run: sudo apt-get install -y unzip
+    
+    - name: Extract project ZIP
+      run: |
+        unzip project.zip -d extracted/
+        ls extracted/
+    
+    - name: Find and setup project
+      run: |
+        # Find gradlew
+        GRADLE_DIR=$(find extracted/ -name "gradlew" -type f | head -1 | xargs dirname)
+        echo "Project found at: $GRADLE_DIR"
+        echo "PROJ_DIR=$GRADLE_DIR" >> $GITHUB_ENV
+        
+    - name: Make gradlew executable
+      run: chmod +x ${{ env.PROJ_DIR }}/gradlew
+    
+    - name: Build Debug APK
+      run: |
+        cd ${{ env.PROJ_DIR }}
+        ./gradlew assembleDebug --stacktrace
+    
+    - name: Find APK
+      run: |
+        APK_PATH=$(find . -name "*.apk" -type f | head -1)
+        echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+        echo "APK found: $APK_PATH"
+    
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: debug-apk
+        path: ${{ env.APK_PATH }}
+        retention-days: 7
